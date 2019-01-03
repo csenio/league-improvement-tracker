@@ -22,55 +22,49 @@ var errors = [];
 //     .catch(err => catchFetchingError("error fetching all champions", err));
 // }
 
+function execute(username, region, champion, amount) {
+  getUserId(username, region)
+    .then(userId => getUserMatchlist(userId, region, champion, amount))
+    .then(matchlist => console.log(matchlist));
+}
+
+execute("cubefox", "euw1", "Ahri", "20");
+
 function catchFetchingError(description, errorMessage) {
   errors.push({ description: description, errorMessage: errorMessage });
 }
 
-function getUserId(username, region, cb) {
-  axios
-    .get(
-      `https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${username}?api_key=${
-        config.key
-      }`
-    )
-    .then(res => {
-      console.log(res);
-      cb(res);
-    })
-    .catch(err => cb(null, err));
+function getUserId(username, region) {
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/${username}?api_key=${
+          config.key
+        }`
+      )
+      .then(res => {
+        resolve(res.data.accountId);
+      })
+      .catch(err => reject(err));
+  });
 }
 
-// getUserMatchlist("cubefox", "euw1", "Ahri", 30, (res, err) => {
-//   if (err) {
-//     console.log("error getting user matchlist", err);
-//   } else {
-//     console.log(res);
-//   }
-// });
-
-//gets the last 'end' matches in chronological order, newest first. userId required from Riot server first -> getUserId.
-function getUserMatchlist(username, region, champion, end, cb) {
-  if (end > 100) {
-    end = 100;
-  }
-  var championId = getChampionId(champion);
-
-  getUserId(username, region, (result, err) => {
-    if (err) {
-      console.log("error", err);
-    } else {
-      console.log(result.data.accountId, region, championId, end);
-      axios
-        .get(
-          `https://${region}.api.riotgames.com/lol/match/v4/matchlists/by-account/${
-            result.data.accountId
-          }?champion=${championId}&endIndex=${end}&beginIndex=0&api_key=${
-            config.key
-          }`
-        )
-        .then(res => cb(res.data.matches))
-        .catch(err => cb(null, err));
+function getUserMatchlist(userId, region, champion, end) {
+  return new Promise((resolve, reject) => {
+    if (end > 100) {
+      end = 100;
     }
+    var championId = getChampionId(champion);
+    console.log(userId, region, championId, end);
+
+    axios
+      .get(
+        `https://${region}.api.riotgames.com/lol/match/v4/matchlists/by-account/${userId}?champion=${championId}&endIndex=${end}&beginIndex=0&api_key=${
+          config.key
+        }`
+      )
+      .then(res => resolve(res.data.matches))
+      .catch(err => reject(null, err));
   });
 }
 
@@ -89,12 +83,14 @@ function getMatchDetails(matchId, region, cb) {
     .catch(err => cb(null, err));
 }
 
-getMatchDetails("3883259526", "euw1", (res, err) => {
-  if (err) {
-    console.log("error getting match details", err);
-  } else {
-    console.log(res);
-  }
-});
+// getMatchDetails("3883259526", "euw1", (res, err) => {
+//   if (err) {
+//     console.log("error getting match details", err);
+//   } else {
+//     console.log(res);
+//   }
+// });
+
+function getSpecificDetail(match, detail, cb) {}
 
 module.exports = router;
