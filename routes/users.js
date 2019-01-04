@@ -5,31 +5,35 @@ var config = require("../config.js");
 var champions = require("../champion.json");
 var errors = [];
 
-// setChampionObject("8.24.1");
+router.get("/data", function(req, res, next) {
+  console.log(req);
+  res.render("index", { title: "Express" });
+});
 
-// function setChampionObject(version) {
-//   axios
-//     .get(
-//       `https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/champion.json`
-//     )
-//     .then(res => {
-//       console.log("champions:", champions);
-//       champions = res;
-//       console.log("champions now:", champions);
-//       console.log("result:", res);
-//       debugger;
-//     })
-//     .catch(err => catchFetchingError("error fetching all champions", err));
-// }
+// createDataSet("cubefox", "euw1", "Ahri", "10")
+//   .then(res => {
+//     result = res;
+//     console.log("result", result);
+//   })
+//   .catch(err => console.log("error", err));
 
-function execute(username, region, champion, amount) {
-  let result = [];
-  getUserId(username, region)
+function createDataSet(username, region, champion, amount, setFor) {
+  var dataArray = [];
+  return getUserId(username, region)
     .then(userId => getUserMatchlist(userId, region, champion, amount))
-    .then(matchlist => console.log(matchlist));
+    .then(matchlist => {
+      matchlist.forEach(match => {
+        getMatchDetails(matchlist[0].gameId.toString(), region)
+          .then(res => {
+            dataArray.push(res);
+            console.log(dataArray);
+          })
+          .catch(err => console.log(err));
+      });
+    });
 }
 
-// execute("cubefox", "euw1", "Ahri", "20");
+// createDataSet("cubefox", region, undefined, "20");
 
 function catchFetchingError(description, errorMessage) {
   errors.push({ description: description, errorMessage: errorMessage });
@@ -55,8 +59,10 @@ function getUserMatchlist(userId, region, champion, end) {
     if (end > 100) {
       end = 100;
     }
-    var championId = getChampionId(champion);
-    console.log(userId, region, championId, end);
+
+    var championId = champion ? getChampionId(champion) : "";
+
+    console.log("user data:", userId, region, championId, end);
     axios
       .get(
         `https://${region}.api.riotgames.com/lol/match/v4/matchlists/by-account/${userId}?champion=${championId}&endIndex=${end}&beginIndex=0&api_key=${
@@ -91,10 +97,6 @@ function getMatchParticipantId(match, playerId) {
   ).participantId;
 }
 
-getMatchDetails("3883259526", "euw1")
-  .then(res => getPlayerMatchDetails(res))
-  .catch(err => console.log(err));
-
 function getPlayerMatchDetails(match) {
   const participantId = getMatchParticipantId(
     match,
@@ -106,7 +108,7 @@ function getPlayerMatchDetails(match) {
     participant => participant.participantId == participantId
   ).stats.totalMinionsKilled;
 
-  console.log(totalCs / gameDuration);
+  return totalCs / gameDuration;
 }
 
 module.exports = router;
