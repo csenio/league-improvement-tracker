@@ -4,36 +4,54 @@ var axios = require("axios");
 var config = require("../config.js");
 var champions = require("../champion.json");
 var errors = [];
+var fs = require("fs");
 
 router.get("/data", function(req, res, next) {
-  console.log(req);
-  res.render("index", { title: "Express" });
+  createDataSet(req.query.username, req.query.region, "Ahri", "18")
+    .then(dataset => {
+      res.send(dataset);
+      res.status(200);
+    })
+    .catch(err => res.status(404));
 });
 
-// createDataSet("cubefox", "euw1", "Ahri", "10")
-//   .then(res => {
-//     result = res;
-//     console.log("result", result);
-//   })
-//   .catch(err => console.log("error", err));
+// createDataSet("cubefox", "euw1", "", "18");
+// getPlayerMatchDetails(match, userId)
 
-function createDataSet(username, region, champion, amount, setFor) {
-  var dataArray = [];
+//data Array is an array of objects containing gamedata according to the filter
+function createDataSet(username, region, champion, amount, filter) {
+  var uId;
   return getUserId(username, region)
-    .then(userId => getUserMatchlist(userId, region, champion, amount))
+    .then(userId => {
+      uId = userId;
+      return getUserMatchlist(uId, region, champion, amount);
+    })
     .then(matchlist => {
-      matchlist.forEach(match => {
-        getMatchDetails(matchlist[0].gameId.toString(), region)
-          .then(res => {
-            dataArray.push(res);
-            console.log(dataArray);
+      console.log("matchlist:", matchlist);
+      return (
+        Promise.all(
+          matchlist.map(match =>
+            getMatchDetails(match.gameId.toString(), region)
+          )
+        )
+          .then(mappedMatchList => {
+            console.log(mappedMatchList);
           })
-          .catch(err => console.log(err));
-      });
-    });
-}
 
-// createDataSet("cubefox", region, undefined, "20");
+          //   // Promise.all(
+          //   //   mappedMatchList.map(match =>
+          //   //     getPlayerMatchDetails(
+          //   //       match,
+          //   //       uId
+          //   //       // "tydNGC-u00pR5qC-5VBYLPay4L37u0Z-qL0a_DFWpcAgFBo"
+          //   //     )
+          //   //   )
+          //   // )
+          .catch(err => console.log(err))
+      );
+    })
+    .catch(err => console.log(err));
+}
 
 function catchFetchingError(description, errorMessage) {
   errors.push({ description: description, errorMessage: errorMessage });
@@ -97,18 +115,13 @@ function getMatchParticipantId(match, playerId) {
   ).participantId;
 }
 
-function getPlayerMatchDetails(match) {
-  const participantId = getMatchParticipantId(
-    match,
-    "tydNGC-u00pR5qC-5VBYLPay4L37u0Z-qL0a_DFWpcAgFBo"
-  );
-
-  const gameDuration = match.gameDuration / 60;
-  const totalCs = match.participants.find(
+function getPlayerMatchDetails(match, userId) {
+  const participantId = getMatchParticipantId(match, userId);
+  const matchFilteredForUser = match.participants.find(
     participant => participant.participantId == participantId
-  ).stats.totalMinionsKilled;
-
-  return totalCs / gameDuration;
+  ).stats;
+  console.log(matchFilteredForUser);
+  return matchFilteredForUser;
 }
 
 module.exports = router;
